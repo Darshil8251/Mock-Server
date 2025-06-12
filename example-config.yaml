@@ -1,0 +1,58 @@
+endpoints:
+  - path: "/api/users"
+    method: "GET"
+    headers:
+      Content-Type: "application/json"
+      X-Custom-Header: "mock-server"
+    queryParams:
+      search: "string"
+      filter: "string"
+    response:
+      status: 200
+      headers:
+        X-Response-Header: "mock-response"
+      body:
+        users:
+          - id: 1
+            name: "John Doe"
+            email: "john@example.com"
+          - id: 2
+            name: "Jane Smith"
+            email: "jane@example.com"
+    pagination:
+      enabled: true
+      pageSize: 10
+      totalItems: 100
+      pageParam: "page"
+      sizeParam: "size"
+    responseParams:
+      dynamicFields:
+        - "id"
+        - "email"
+      incrementBy: 1
+
+  - path: "/api/products"
+    method: "GET"
+    headers:
+      Content-Type: "application/json"
+    response:
+      status: 200
+      body:
+        products:
+          - id: "P001"
+            name: "Product 1"
+            price: 99.99
+          - id: "P002"
+            name: "Product 2"
+            price: 149.99
+    pagination:
+      enabled: true
+      pageSize: 5
+      totalItems: 50
+      pageParam: "page"
+      sizeParam: "limit"
+    responseParams:
+      dynamicFields:
+        - "id"
+        - "price"
+      incrementBy: 10 
