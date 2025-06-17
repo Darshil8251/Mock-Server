@@ -1,0 +1,2 @@
+{"level":"info","ts":1750125489.0909848,"caller":"logger/logger.go:96","msg":"logger successfully initialized"}
+{"level":"info","ts":1750125489.0911613,"caller":"logger/logger.go:101","msg":"config successfully loaded","config":{"endpoints":[{"path":"/alerts","method":"","headers":null,"queryParams":null,"RequestBody":null,"rateLimit":0,"pagination":{"type":""},"APIResponse":null}]}}
