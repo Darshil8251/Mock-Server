@@ -1,0 +1,31 @@
+# Ignore IDE-specific files
+.idea/
+.vscode/
+.cursor/
+
+# Ignore env files
+.env
+*.env
+.env.local
+.env.*.local
+
+# Ignore response folder
+response/
+
+# Ignore log files
+logs/
+*.log
+
+# Ignore local config files
+config.json
+config.local.json
+
+# Go specific ignores
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.workbody
