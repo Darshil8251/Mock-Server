@@ -1,7 +1,18 @@
 {
     "endpoints": [
         {
-            "path": "/alerts"
+            "path": "/alerts",
+            "method": "GET",
+            "headers": {},
+            "queryParams": {},
+            "requestBody": {},
+            "pagination": {
+                "type": "page",
+                "location": "query",
+                "pageSizeKey": "pageSize",
+                "pageNoKey": "pageNo"
+            },
+            "APIResponse": {}
         }
     ]
 }

@@ -18,12 +18,25 @@ type Endpoint struct {
 	QueryParams  map[string]any `json:"queryParams"`
 	RequestBody  map[string]any `json:"requestBody"`
 	RateLimit    int            `json:"rateLimit"`
-	Pagination   Pagination     `json:"pagination"`
+	Pagination   pagination     `json:"pagination"`
 	MockResponse any            `json:"APIResponse"`
 }
 
-type Pagination struct {
-	Type string `json:"type"`
+type pagination struct {
+	Type     string         `json:"type"`
+	Location string         `json:"location"`
+	Options  map[string]any `json:"options"`
+	Format   struct {
+		Type   string `json:"type"` // format1, format2, format3, format4, format5, format6
+		Fields struct {
+			DataField       string `json:"dataField"`       // data, results, items, records, etc.
+			MetaField       string `json:"metaField"`       // meta, pagination, pageInfo, etc.
+			TotalField      string `json:"totalField"`      // total, totalCount, count, etc.
+			PageField       string `json:"pageField"`       // page, currentPage, etc.
+			LimitField      string `json:"limitField"`      // limit, pageSize, etc.
+			TotalPagesField string `json:"totalPagesField"` // totalPages, etc.
+		} `json:"fields"`
+	} `json:"format"`
 }
 
 func LoadConfig(configFilePath string) (*APIConfig, error) {
@@ -42,7 +55,7 @@ func LoadConfig(configFilePath string) (*APIConfig, error) {
 
 	err = validateConfig(apiConfig)
 	if err != nil {
-		logger.Get().ErrorW("Configuration validation failed", logger.Field("Err", err))
+		logger.Get().Error("Configuration validation failed", errInvalidConfig)
 		return nil, err
 	}
 
@@ -53,30 +66,18 @@ func validateConfig(cfg *APIConfig) error {
 	var tmpLogger = logger.Get()
 
 	if cfg == nil {
-		tmpLogger.WarnW("Provided configuration is nil", logger.Field("Err", ErrInvalidConfig))
+		tmpLogger.Warn("Provided configuration is nil", errInvalidConfig)
 		return nil
 	}
 
 	for _, endpoint := range cfg.Endpoints {
 		if endpoint.Path == "" {
-			tmpLogger.WarnW("Endpoint path cannot be empty", logger.Field("Err", ErrInvalidPath))
-			return ErrInvalidPath
+			tmpLogger.Warn("Endpoint path cannot be empty", errInvalidPath)
+			return errInvalidPath
 		}
 		if endpoint.Method == "" {
-			tmpLogger.WarnW("Endpoint method cannot be empty", logger.Field("Err", ErrInvalidMethod))
-			return ErrInvalidMethod
-		}
-		if endpoint.MockResponse == nil {
-			tmpLogger.WarnW("Mock response cannot be nil", logger.Field("Err", ErrInvalidResponseFormat))
-			return ErrInvalidResponseFormat
-		}
-		if len(endpoint.Headers) == 0 {
-			tmpLogger.WarnW("Headers cannot be empty", logger.Field("Err", ErrMissingHeaders))
-			return ErrMissingHeaders
-		}
-		if len(endpoint.QueryParams) == 0 {
-			tmpLogger.WarnW("Query parameters cannot be empty", logger.Field("Err", ErrMissingQueryParams))
-			return ErrMissingQueryParams
+			tmpLogger.Warn("Endpoint method cannot be empty", errInvalidMethod)
+			return errInvalidMethod
 		}
 	}
 

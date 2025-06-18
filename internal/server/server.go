@@ -15,13 +15,8 @@ func CreateServer(ctx context.Context, port string, cfg *config.APIConfig) (err 
 
 	tmpLogger := logger.Get()
 
-	if cfg == nil {
-		tmpLogger.Warn("CreateServer called with nil configuration")
-		return fmt.Errorf("configuration cannot be nil")
-	}
-
 	// Create a new Gin engine
-	engine := gin.New()
+	engine := gin.Default()
 
 	// Initialize the router with the provided configuration
 	router.SetupRoutes(engine, cfg)

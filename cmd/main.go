@@ -29,8 +29,6 @@ func main() {
 	PORT := os.Getenv("PORT")
 	Level := os.Getenv("LEVEL")
 
-
-
 	// Initialize mockLogger
 	mockLogger, err := logger.CreateNewLogger(Level)
 	if err != nil {

@@ -13,8 +13,8 @@ type Logger interface {
 	Debug(msg string, fields ...zap.Field)
 	Info(msg string)
 	InfoW(msg string, fields ...zap.Field)
-	Warn(msg string)
-	WarnW(msg string, fields ...zap.Field)
+	Warn(msg string, err error)
+	WarnW(msg string, err error, fields ...zap.Field)
 	Error(msg string, err error)
 	ErrorW(msg string, err error, fields ...zap.Field)
 	With(fields ...zap.Field) Logger
@@ -29,13 +29,14 @@ type zapLogger struct {
 type loggerLevel string
 
 const (
-	ProductionLevel  loggerLevel = "PRODUCTION"
-	DevelopmentLevel loggerLevel = "DEVELOPMENT"
+	productionLevel  loggerLevel = "PRODUCTION"
+	developmentLevel loggerLevel = "DEVELOPMENT"
 )
 
 var (
 	instance *zapLogger
 	once     sync.Once
+	_        Logger = (*zapLogger)(nil)
 )
 
 // New creates a new logger instance with the specified environment
@@ -44,7 +45,7 @@ func CreateNewLogger(env string) (Logger, error) {
 	once.Do(func() {
 		var config zap.Config
 
-		if strings.Compare(env, string(ProductionLevel)) == 0 {
+		if strings.Compare(env, string(productionLevel)) == 0 {
 			config = zap.NewProductionConfig()
 		} else {
 			config = zap.NewDevelopmentConfig()
@@ -75,7 +76,7 @@ func CreateNewLogger(env string) (Logger, error) {
 func Get() Logger {
 	if instance == nil {
 		// Default to development environment if not initialized
-		logger, err := CreateNewLogger("development")
+		logger, err := CreateNewLogger(string(productionLevel))
 		if err != nil {
 			// If we can't create a logger, create a no-op logger
 			noopLogger := zap.NewNop()
@@ -102,13 +103,13 @@ func (l *zapLogger) InfoW(msg string, fields ...zap.Field) {
 }
 
 // Warn logs a warning message
-func (l *zapLogger) Warn(msg string) {
-	l.logger.Warn(msg)
+func (l *zapLogger) Warn(msg string, err error) {
+	l.logger.Warn(msg, ErrorField(err))
 }
 
 // WarnW logs a warning message with fields
-func (l *zapLogger) WarnW(msg string, fields ...zap.Field) {
-	l.logger.Warn(msg, fields...)
+func (l *zapLogger) WarnW(msg string, err error, fields ...zap.Field) {
+	l.logger.Warn(msg, append([]zap.Field{ErrorField(err)}, fields...)...)
 }
 
 // Error logs an error message with error
@@ -156,5 +157,3 @@ func IntField(key string, value int) zap.Field {
 func ErrorField(err error) zap.Field {
 	return zap.Error(err)
 }
-
-
