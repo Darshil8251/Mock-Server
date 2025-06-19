@@ -19,24 +19,14 @@ type Endpoint struct {
 	RequestBody  map[string]any `json:"requestBody"`
 	RateLimit    int            `json:"rateLimit"`
 	Pagination   pagination     `json:"pagination"`
-	MockResponse any            `json:"APIResponse"`
+	MockResponse string         `json:"APIResponse"`
+	ArrayField   string         `json:"arrayField,omitempty"`
 }
 
 type pagination struct {
 	Type     string         `json:"type"`
 	Location string         `json:"location"`
 	Options  map[string]any `json:"options"`
-	Format   struct {
-		Type   string `json:"type"` // format1, format2, format3, format4, format5, format6
-		Fields struct {
-			DataField       string `json:"dataField"`       // data, results, items, records, etc.
-			MetaField       string `json:"metaField"`       // meta, pagination, pageInfo, etc.
-			TotalField      string `json:"totalField"`      // total, totalCount, count, etc.
-			PageField       string `json:"pageField"`       // page, currentPage, etc.
-			LimitField      string `json:"limitField"`      // limit, pageSize, etc.
-			TotalPagesField string `json:"totalPagesField"` // totalPages, etc.
-		} `json:"fields"`
-	} `json:"format"`
 }
 
 func LoadConfig(configFilePath string) (*APIConfig, error) {
@@ -55,7 +45,7 @@ func LoadConfig(configFilePath string) (*APIConfig, error) {
 
 	err = validateConfig(apiConfig)
 	if err != nil {
-		logger.Get().Error("Configuration validation failed", errInvalidConfig)
+		logger.GetLogger().Error("Configuration validation failed", errInvalidConfig)
 		return nil, err
 	}
 
@@ -63,7 +53,7 @@ func LoadConfig(configFilePath string) (*APIConfig, error) {
 }
 
 func validateConfig(cfg *APIConfig) error {
-	var tmpLogger = logger.Get()
+	var tmpLogger = logger.GetLogger()
 
 	if cfg == nil {
 		tmpLogger.Warn("Provided configuration is nil", errInvalidConfig)

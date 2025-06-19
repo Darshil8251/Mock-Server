@@ -1,0 +1,13 @@
+{
+  "metadata": {
+    "total": 100,
+    "page": 1,
+    "pageSize": 10
+  },
+  "alerts": [
+    {
+      "id": 1,
+      "name": "Alert 1"
+    }
+  ]
+}

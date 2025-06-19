@@ -1,18 +1,21 @@
 {
-    "endpoints": [
-        {
-            "path": "/alerts",
-            "method": "GET",
-            "headers": {},
-            "queryParams": {},
-            "requestBody": {},
-            "pagination": {
-                "type": "page",
-                "location": "query",
-                "pageSizeKey": "pageSize",
-                "pageNoKey": "pageNo"
-            },
-            "APIResponse": {}
-        }
-    ]
+  "endpoints": [
+    {
+      "path": "/alerts",
+      "method": "GET",
+      "headers": {},
+      "queryParams": {
+        "page": 1,
+        "size": 10
+      },
+      "pagination": {
+        "type": "page",
+        "location": "query",
+        "pageKey": "page",
+        "sizeKey": "size"
+      },
+      "APIResponse": "response/sampleResponse.json",
+      "arrayField": "alerts"
+    }
+  ]
 }

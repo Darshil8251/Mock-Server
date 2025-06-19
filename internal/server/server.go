@@ -13,7 +13,7 @@ import (
 
 func CreateServer(ctx context.Context, port string, cfg *config.APIConfig) (err error) {
 
-	tmpLogger := logger.Get()
+	tmpLogger := logger.GetLogger()
 
 	// Create a new Gin engine
 	engine := gin.Default()

@@ -72,8 +72,8 @@ func CreateNewLogger(env string) (Logger, error) {
 	return instance, nil
 }
 
-// Get returns the singleton logger instance
-func Get() Logger {
+// GetLogger returns the singleton logger instance
+func GetLogger() Logger {
 	if instance == nil {
 		// Default to development environment if not initialized
 		logger, err := CreateNewLogger(string(productionLevel))

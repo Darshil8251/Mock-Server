@@ -1,15 +1,23 @@
 package pagination
 
 import (
+	"encoding/json"
+	"fmt"
+	"io"
 	"mock-server/internal/config"
+	"mock-server/pkg/logger"
 	"net/http"
+	"os"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
 
 func pagePaginator(endpoint config.Endpoint) gin.HandlerFunc {
 	return func(c *gin.Context) {
+
+		tmpLogger := logger.GetLogger()
 		// Extract config keys and defaults
 		pageKey, _ := endpoint.Pagination.Options["pageKey"].(string)
 		sizeKey, _ := endpoint.Pagination.Options["sizeKey"].(string)
@@ -48,7 +56,18 @@ func pagePaginator(endpoint config.Endpoint) gin.HandlerFunc {
 			} else if v, ok := body[sizeKey].(int); ok {
 				size = v
 			}
-		default: // "query" or fallback
+		case "header":
+			if v := c.GetHeader(pageKey); v != "" {
+				if p, err := strconv.Atoi(v); err == nil && p > 0 {
+					page = p
+				}
+			}
+			if v := c.GetHeader(sizeKey); v != "" {
+				if s, err := strconv.Atoi(v); err == nil && s > 0 {
+					size = s
+				}
+			}
+		case "query":
 			pageStr := c.DefaultQuery(pageKey, strconv.Itoa(int(defaultPage)))
 			sizeStr := c.DefaultQuery(sizeKey, strconv.Itoa(int(defaultSize)))
 			if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
@@ -59,22 +78,53 @@ func pagePaginator(endpoint config.Endpoint) gin.HandlerFunc {
 			}
 		}
 
+		if strings.Compare(endpoint.MockResponse, "") != 0 {
+			endpoint.MockResponse = ".././" + endpoint.MockResponse
+		}
+
+		fmt.Println(endpoint.MockResponse)
+
 		// Get the data to paginate
-		data, ok := endpoint.MockResponse.([]interface{})
-		if !ok {
-			c.JSON(http.StatusOK, gin.H{
-				"items":       []interface{}{},
-				"page":        page,
-				"page_size":   size,
-				"total_items": 0,
-				"total_pages": 0,
-				"has_next":    false,
-				"has_prev":    false,
-			})
+		file, err := os.Open(endpoint.MockResponse)
+		if err != nil {
+			tmpLogger.Error("failed to load response file", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load response file"})
 			return
 		}
 
-		total := len(data)
+		defer file.Close()
+
+		bytes, err := io.ReadAll(file)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read response file"})
+			return
+		}
+
+		var responseObj map[string]interface{}
+		if err := json.Unmarshal(bytes, &responseObj); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid response JSON"})
+			return
+		}
+
+		// 2. Find the array field
+		arrayField := endpoint.ArrayField
+		if arrayField == "" {
+			for k, v := range responseObj {
+				if _, ok := v.([]interface{}); ok {
+					arrayField = k
+					break
+				}
+			}
+		}
+		if arrayField == "" {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "No array field found to update"})
+			return
+		}
+
+		// 3. Get the array to paginate
+		arr, _ := responseObj[arrayField].([]interface{})
+
+		total := len(arr)
 		start := (page - 1) * size
 		end := start + size
 		if start > total {
@@ -83,7 +133,7 @@ func pagePaginator(endpoint config.Endpoint) gin.HandlerFunc {
 		if end > total {
 			end = total
 		}
-		pagedData := data[start:end]
+		pagedData := arr[start:end]
 
 		c.JSON(http.StatusOK, gin.H{
 			"items":       pagedData,
