@@ -1,0 +1,17 @@
+# Ignore IDE-specific files
+.idea/
+.vscode/
+
+# Ignore env files
+.env
+*.env
+
+# Ignore response folder
+/response/
+
+# Ignore log files
+/logs/
+*.log
+
+# Ignore local config files
+config.json

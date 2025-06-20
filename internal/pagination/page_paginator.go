@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"mock-server/internal/config"
-	"mock-server/pkg/logger"
 	"net/http"
 	"os"
 	"strconv"
@@ -14,80 +13,58 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const (
+	defaultPageKey  = "page"
+	defaultPageSize = 100
+)
+
 func pagePaginator(endpoint config.Endpoint) gin.HandlerFunc {
 	return func(c *gin.Context) {
-
-		tmpLogger := logger.GetLogger()
 		// Extract config keys and defaults
-		pageKey, _ := endpoint.Pagination.Options["pageKey"].(string)
 		sizeKey, _ := endpoint.Pagination.Options["sizeKey"].(string)
-		defaultPage, _ := endpoint.Pagination.Options["defaultPage"].(float64)
-		defaultSize, _ := endpoint.Pagination.Options["defaultPageSize"].(float64)
 		location := endpoint.Pagination.Location
 
-		if pageKey == "" {
-			pageKey = "page"
-		}
-		if sizeKey == "" {
-			sizeKey = "size"
-		}
-		if defaultPage == 0 {
-			defaultPage = 1
-		}
-		if defaultSize == 0 {
-			defaultSize = 10
-		}
+		var pageSize = defaultPageSize
 
-		page := int(defaultPage)
-		size := int(defaultSize)
+		fmt.Printf("sizeKey: %s\n", sizeKey)
 
-		// Extract pagination params from the correct location
-		switch location {
-		case "body":
+		// Extract pagination params from the respective location
+		switch PageParamsLocation(location) {
+		case body:
+			fmt.Printf("body: %v\n", c.Request.Body)
 			var body map[string]interface{}
-			_ = c.ShouldBindJSON(&body)
-			if v, ok := body[pageKey].(float64); ok {
-				page = int(v)
-			} else if v, ok := body[pageKey].(int); ok {
-				page = v
+			err := c.ShouldBindJSON(&body)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse request body"})
+				return
 			}
-			if v, ok := body[sizeKey].(float64); ok {
-				size = int(v)
-			} else if v, ok := body[sizeKey].(int); ok {
-				size = v
+			value, found := body[sizeKey]
+			if found {
+				pageSize = value.(int)
 			}
-		case "header":
-			if v := c.GetHeader(pageKey); v != "" {
-				if p, err := strconv.Atoi(v); err == nil && p > 0 {
-					page = p
-				}
-			}
+
+		case header:
 			if v := c.GetHeader(sizeKey); v != "" {
-				if s, err := strconv.Atoi(v); err == nil && s > 0 {
-					size = s
+				if p, err := strconv.Atoi(v); err == nil && p > 0 {
+					pageSize = p
 				}
 			}
-		case "query":
-			pageStr := c.DefaultQuery(pageKey, strconv.Itoa(int(defaultPage)))
-			sizeStr := c.DefaultQuery(sizeKey, strconv.Itoa(int(defaultSize)))
-			if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
-				page = p
+		case query:
+			size, err := strconv.Atoi(c.DefaultQuery(sizeKey, strconv.Itoa(defaultPageSize)))
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get sizeValue"})
+				return
 			}
-			if s, err := strconv.Atoi(sizeStr); err == nil && s > 0 {
-				size = s
-			}
+			pageSize = size
 		}
 
-		if strings.Compare(endpoint.MockResponse, "") != 0 {
-			endpoint.MockResponse = ".././" + endpoint.MockResponse
+		if strings.Compare(endpoint.ResponseObjFilePath, "") != 0 {
+			endpoint.ResponseObjFilePath = ".././" + endpoint.ResponseObjFilePath
 		}
-
-		fmt.Println(endpoint.MockResponse)
 
 		// Get the data to paginate
-		file, err := os.Open(endpoint.MockResponse)
+		file, err := os.Open(endpoint.ResponseObjFilePath)
 		if err != nil {
-			tmpLogger.Error("failed to load response file", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load response file"})
 			return
 		}
@@ -107,8 +84,10 @@ func pagePaginator(endpoint config.Endpoint) gin.HandlerFunc {
 		}
 
 		// 2. Find the array field
-		arrayField := endpoint.ArrayField
-		if arrayField == "" {
+		arrayField := endpoint.ResponseField
+
+		// If user not specified the response field, then find array field from the response object
+		if strings.Compare(endpoint.ResponseField, "") == 0 {
 			for k, v := range responseObj {
 				if _, ok := v.([]interface{}); ok {
 					arrayField = k
@@ -116,33 +95,34 @@ func pagePaginator(endpoint config.Endpoint) gin.HandlerFunc {
 				}
 			}
 		}
-		if arrayField == "" {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "No array field found to update"})
+		if strings.Compare(arrayField, "") == 0 {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Response field not available"})
 			return
 		}
 
-		// 3. Get the array to paginate
-		arr, _ := responseObj[arrayField].([]interface{})
+		// 3. Find the response object
+		arr, ok := responseObj[arrayField].([]any)
+		if !ok {
 
-		total := len(arr)
-		start := (page - 1) * size
-		end := start + size
-		if start > total {
-			start = total
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to find response object"})
+			return
 		}
-		if end > total {
-			end = total
-		}
-		pagedData := arr[start:end]
 
-		c.JSON(http.StatusOK, gin.H{
-			"items":       pagedData,
-			"page":        page,
-			"page_size":   size,
-			"total_items": total,
-			"total_pages": (total + size - 1) / size,
-			"has_next":    end < total,
-			"has_prev":    page > 1,
-		})
+		object := arr[0]
+		APIResponseObject := make([]any, 0, pageSize)
+
+		for len(APIResponseObject) < pageSize {
+			APIResponseObject = append(APIResponseObject, object)
+		}
+
+		responseObj[arrayField] = APIResponseObject
+
+		jsonResponse, err := json.Marshal(responseObj)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate the response"})
+			return
+		}
+
+		c.Data(http.StatusOK, "application/json", jsonResponse)
 	}
 }

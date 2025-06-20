@@ -3,30 +3,60 @@ package server
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"time"
 
+	"github.com/gin-gonic/gin"
 	"mock-server/internal/config"
 	"mock-server/internal/router"
 	"mock-server/pkg/logger"
-
-	"github.com/gin-gonic/gin"
 )
 
-func CreateServer(ctx context.Context, port string, cfg *config.APIConfig) (err error) {
-
+func CreateServer(ctx context.Context, port string, cfg *config.APIConfig) error {
 	tmpLogger := logger.GetLogger()
 
 	// Create a new Gin engine
 	engine := gin.Default()
 
-	// Initialize the router with the provided configuration
+	// Initialize the router
 	router.SetupRoutes(engine, cfg)
 
-	// Start the server with the specified configuration
-	if err := engine.Run(":" + port); err != nil {
-		serverErr := fmt.Errorf("failed to start server on port %s: %w", port, err)
-		tmpLogger.Error("Failed to start server", serverErr)
-		return serverErr
+	// Create HTTP server with timeouts
+	httpServer := &http.Server{
+		Addr:         ":" + port,
+		Handler:      engine,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  15 * time.Second,
 	}
 
-	return nil
+	// Channel to listen for server errors
+	serverErr := make(chan error, 1)
+
+	// Start server in a goroutine
+	go func() {
+		tmpLogger.InfoW("Server starting", logger.Field("port", port))
+		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			serverErr <- fmt.Errorf("server failed: %w", err)
+		}
+	}()
+
+	// Wait for shutdown signal or server error
+	select {
+	case err := <-serverErr:
+		return err
+	case <-ctx.Done():
+		tmpLogger.Info("Server shutting down gracefully...")
+
+		// Create shutdown context with timeout
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		// Attempt graceful shutdown
+		if err := httpServer.Shutdown(shutdownCtx); err != nil {
+			return fmt.Errorf("graceful shutdown failed: %w", err)
+		}
+		tmpLogger.Info("Server stopped")
+		return nil
+	}
 }

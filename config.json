@@ -10,12 +10,12 @@
       },
       "pagination": {
         "type": "page",
-        "location": "query",
+        "location": "body",
         "pageKey": "page",
         "sizeKey": "size"
       },
-      "APIResponse": "response/sampleResponse.json",
-      "arrayField": "alerts"
+      "responseObjFilePath": "response/sampleResponse.json",
+      "responseField": "alerts"
     }
   ]
 }

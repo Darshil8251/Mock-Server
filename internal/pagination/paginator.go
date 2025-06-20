@@ -8,12 +8,18 @@ import (
 
 type PaginationType string
 
+type PageParamsLocation string
+
 const (
 	page   PaginationType = "page"
 	token  PaginationType = "token"
 	none   PaginationType = "none"
 	link   PaginationType = "link"
 	offset PaginationType = "offset"
+
+	body   PageParamsLocation = "body"
+	query  PageParamsLocation = "query"
+	header PageParamsLocation = "header"
 )
 
 func CreatePaginator(endpoint config.Endpoint) gin.HandlerFunc {
