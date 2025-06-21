@@ -40,7 +40,19 @@ func pagePaginator(endpoint config.Endpoint) gin.HandlerFunc {
 			}
 			value, found := body[sizeKey]
 			if found {
-				pageSize = value.(int)
+				switch v := value.(type) {
+				case int:
+					pageSize = v
+				case float64:
+					pageSize = int(v)
+				case string:
+					if p, err := strconv.Atoi(v); err == nil && p > 0 {
+						pageSize = p
+					}
+				default:
+					c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid page size format"})
+					return
+				}
 			}
 
 		case header:
