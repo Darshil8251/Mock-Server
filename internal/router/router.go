@@ -2,7 +2,8 @@ package router
 
 import (
 	"errors"
-	
+	"net/http"
+
 	"mock-server/internal/config"
 	"mock-server/internal/pagination"
 
@@ -27,15 +28,15 @@ func SetupRoutes(engine *gin.Engine, cfg *config.APIConfig) error {
 
 		// Register the handler with the appropriate HTTP method
 		switch endpoint.Method {
-		case "GET":
+		case http.MethodGet:
 			engine.GET(endpoint.Path, paginator.Paginate)
-		case "POST":
+		case http.MethodPost:
 			engine.POST(endpoint.Path, paginator.Paginate)
-		case "PUT":
+		case http.MethodPut:
 			engine.PUT(endpoint.Path, paginator.Paginate)
-		case "DELETE":
+		case http.MethodDelete:
 			engine.DELETE(endpoint.Path, paginator.Paginate)
-		case "PATCH":
+		case http.MethodPatch:
 			engine.PATCH(endpoint.Path, paginator.Paginate)
 		default:
 			engine.Any(endpoint.Path, paginator.Paginate)

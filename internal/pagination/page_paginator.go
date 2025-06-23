@@ -65,9 +65,8 @@ func createPagePaginator(endpoint config.Endpoint) (*pagePaginator, error) {
 
 	pageKey, ok := endpoint.Pagination.Options["pageKey"].(string)
 	if !ok {
-		errInvalidPageKey := fmt.Errorf("invalid page key for endpoint: %v", endpoint.Path)
-		tmpLogger.Warn(errInvalidPageKey.Error(), err)
-		return nil, errors.Join(errInvalidPageKey, err)
+		tmpLogger.InfoW("page key not specified, initialized with default value", map[string]any{"endpoint": endpoint.Path})
+		pageKey = defaultPageKey
 	}
 	p.pageKey = pageKey
 
