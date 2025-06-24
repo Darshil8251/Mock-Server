@@ -29,23 +29,30 @@ type pagination struct {
 	Options  map[string]any `json:"options"`
 }
 
-func LoadConfig(configFilePath string) (*APIConfig, error) {
+func LoadConfig() (*APIConfig, error) {
+	var (
+		mockLogger     = logger.GetLogger()
+		configFilePath = os.Getenv("CONFIG_FILE_PATH")
+	)
+
 	apiConfig := &APIConfig{}
 
 	jsonFile, err := os.Open(configFilePath)
 	if err != nil {
+		mockLogger.Error("error opening config file", err)
 		return nil, err
 	}
 	defer jsonFile.Close()
 
 	jsonParser := json.NewDecoder(jsonFile)
 	if err := jsonParser.Decode(apiConfig); err != nil {
+		mockLogger.Error("error decoding config file", err)
 		return nil, err
 	}
 
 	err = validateConfig(apiConfig)
 	if err != nil {
-		logger.GetLogger().Error("Configuration validation failed", errInvalidConfig)
+		mockLogger.Error("invalid config", err)
 		return nil, err
 	}
 
@@ -53,20 +60,20 @@ func LoadConfig(configFilePath string) (*APIConfig, error) {
 }
 
 func validateConfig(cfg *APIConfig) error {
-	var tmpLogger = logger.GetLogger()
+	var mockLogger = logger.GetLogger()
 
 	if cfg == nil {
-		tmpLogger.Warn("Provided configuration is nil", errInvalidConfig)
+		mockLogger.Warn("provided config is nil", errInvalidConfig)
 		return nil
 	}
 
 	for _, endpoint := range cfg.Endpoints {
 		if endpoint.Path == "" {
-			tmpLogger.Warn("Endpoint path cannot be empty", errInvalidPath)
+			mockLogger.Warn("invalid endpoint path", errInvalidPath)
 			return errInvalidPath
 		}
 		if endpoint.Method == "" {
-			tmpLogger.Warn("Endpoint method cannot be empty", errInvalidMethod)
+			mockLogger.Warn("invalid endpoint method", errInvalidMethod)
 			return errInvalidMethod
 		}
 	}

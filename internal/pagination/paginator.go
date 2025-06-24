@@ -2,7 +2,7 @@ package pagination
 
 import (
 	"fmt"
-	
+
 	"mock-server/internal/config"
 
 	"github.com/gin-gonic/gin"
@@ -10,7 +10,7 @@ import (
 
 type paginationType string
 
-type pageParamsLocation string
+type pageParameterLocation string
 
 const (
 	page   paginationType = "page"
@@ -19,9 +19,9 @@ const (
 	link   paginationType = "link"
 	offset paginationType = "offset"
 
-	body   pageParamsLocation = "body"
-	query  pageParamsLocation = "query"
-	header pageParamsLocation = "header"
+	body   pageParameterLocation = "body"
+	query  pageParameterLocation = "query"
+	header pageParameterLocation = "header"
 )
 
 type Paginator interface {
@@ -35,6 +35,12 @@ func CreatePaginator(endpoint config.Endpoint) (Paginator, error) {
 		p, err := createPagePaginator(endpoint)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create page paginator for endpoint: %s", endpoint.Path)
+		}
+		return p, nil
+	case offset:
+		p, err := createOffsetPaginator(endpoint)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create offset paginator for endpoint: %s", endpoint.Path)
 		}
 		return p, nil
 	default:

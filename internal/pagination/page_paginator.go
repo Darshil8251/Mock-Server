@@ -10,23 +10,20 @@ import (
 
 	"mock-server/internal/config"
 	"mock-server/pkg/logger"
-	"mock-server/pkg/utils"
 
 	"github.com/gin-gonic/gin"
 )
 
 const (
-	defaultPageKey  = "page"
 	defaultPageSize = 100
 )
 
 // pagePaginator responsible for the page based pagination
 type pagePaginator struct {
-	endpoint           config.Endpoint
 	responseObj        map[string]interface{}
 	pageSizeKey        string
 	pageKey            string
-	pageParamsLocation pageParamsLocation
+	pageParamsLocation pageParameterLocation
 	responseField      string
 }
 
@@ -34,66 +31,53 @@ type pagePaginator struct {
 func createPagePaginator(endpoint config.Endpoint) (*pagePaginator, error) {
 	var tmpLogger = logger.GetLogger()
 
-	p := &pagePaginator{
-		endpoint: endpoint,
+	tmpLogger.InfoW("creating page paginator", map[string]any{"endpoint": endpoint.Path})
+
+	p := pagePaginator{
+		pageParamsLocation: pageParameterLocation(endpoint.Pagination.Location),
 	}
 
-	filePath, err := utils.ValidateAndResolvePath(endpoint.ResponseObjFilePath)
-	if err != nil {
-		errInvalidPath := fmt.Errorf("invalid file path for endpoint: %s", endpoint.Path)
-		tmpLogger.Warn(errInvalidPath.Error(), err)
-		return nil, errors.Join(errInvalidPath, err)
-	}
+	defer func() {
+		tmpLogger.InfoW("page paginator function", map[string]any{
+			"pagePaginator": p,
+		})
+	}()
 
-	responseObj, err := utils.ReadAndParseJSONFile(filePath)
+	responseObj, err := loadResponseObj(endpoint.ResponseObjFilePath)
 	if err != nil {
-		errInvalidResponse := fmt.Errorf("invalid response object for endpoint: %s", endpoint.Path)
+		errInvalidResponse := fmt.Errorf("invalid response file path for endpoint: %s", endpoint.Path)
 		tmpLogger.Warn(errInvalidResponse.Error(), err)
 		return nil, errors.Join(errInvalidResponse, err)
 	}
 
 	p.responseObj = responseObj
 
-	// Validate the pagination parameters and set the values
-	pageSizeKey, ok := endpoint.Pagination.Options["pageSizeKey"].(string)
-	if !ok {
-		errInvalidPageSizeKey := fmt.Errorf("invalid pagesize key for endpoint: %v", endpoint.Path)
-		tmpLogger.Warn(errInvalidPageSizeKey.Error(), err)
-		return nil, errors.Join(errInvalidPageSizeKey, err)
+	p.pageKey, p.pageSizeKey = validateAndParsePaginationOptions(endpoint)
+
+	// Validate the response field
+	if endpoint.ResponseField != "" {
+		_, ok := responseObj[endpoint.ResponseField].([]any)
+		if !ok {
+			errInvalidResponseField := fmt.Errorf("invalid response field for endpoint: %v", endpoint.Path)
+			tmpLogger.Warn(errInvalidResponseField.Error(), err)
+			return nil, errors.Join(errInvalidResponseField, err)
+		}
+		p.responseField = endpoint.ResponseField
+		return &p, nil
 	}
-	p.pageSizeKey = pageSizeKey
 
-	pageKey, ok := endpoint.Pagination.Options["pageKey"].(string)
-	if !ok {
-		tmpLogger.InfoW("page key not specified, initialized with default value", map[string]any{"endpoint": endpoint.Path})
-		pageKey = defaultPageKey
-	}
-	p.pageKey = pageKey
-
-	p.pageParamsLocation = pageParamsLocation(endpoint.Pagination.Location)
-
-	// Set the response field name
-	var arrayField = endpoint.ResponseField
-
-	// If user not specified the response field, then find array field from the response object
 	if endpoint.ResponseField == "" {
 		for k, v := range responseObj {
 			if _, ok := v.([]interface{}); ok {
-				arrayField = k
-				break
+				p.responseField = k
+				return &p, nil
 			}
 		}
 	}
 
-	if arrayField == "" {
-		errInvalidResponseField := fmt.Errorf("invalid response field for endpoint: %v", endpoint.Path)
-		tmpLogger.Warn(errInvalidResponseField.Error(), err)
-		return nil, errors.Join(errInvalidResponseField, err)
-	}
-
-	p.responseField = arrayField
-
-	return p, nil
+	errInvalidResponseField := fmt.Errorf("response field not present in response object for endpoint: %v", endpoint.Path)
+	tmpLogger.Warn(errInvalidResponseField.Error(), err)
+	return nil, errors.Join(errInvalidResponseField, err)
 }
 
 // Paginate is the handler function for the page paginator
@@ -148,7 +132,7 @@ func (p *pagePaginator) Paginate(c *gin.Context) {
 	// 3. Find the response object
 	arr, ok := p.responseObj[p.responseField].([]any)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to find response object"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid response field"})
 		return
 	}
 

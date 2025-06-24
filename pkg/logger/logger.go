@@ -1,6 +1,9 @@
 package logger
 
 import (
+	"fmt"
+	"os"
+
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -36,11 +39,13 @@ var (
 )
 
 // New creates a new logger instance with the specified environment
-func CreateNewLogger(env string) (Logger, error) {
+func CreateNewLogger() (Logger, error) {
 	var err error
 	var config zap.Config
+	level := os.Getenv("LEVEL")
+	fmt.Printf("level: %s\n", level)
 
-	if env == string(productionLevel) {
+	if level == string(productionLevel) {
 		config = zap.NewProductionConfig()
 	} else {
 		config = zap.NewDevelopmentConfig()
@@ -55,7 +60,7 @@ func CreateNewLogger(env string) (Logger, error) {
 	// Replace the global logger
 	zap.ReplaceGlobals(logger)
 	logger = logger.WithOptions(zap.AddCaller(), zap.AddCallerSkip(1))
-	
+
 	loggerInstance = &zapLogger{logger}
 
 	return loggerInstance, nil
@@ -64,13 +69,11 @@ func CreateNewLogger(env string) (Logger, error) {
 // GetLogger returns the singleton logger instance
 func GetLogger() Logger {
 	if loggerInstance == nil {
-		// Default to development environment if not initialized
-		logger, err := CreateNewLogger(string(productionLevel))
+		logger, err := CreateNewLogger()
 		if err != nil {
-			// If we can't create a logger, create a no-op logger
-			noopLogger := zap.NewNop()
-			return &zapLogger{noopLogger}
+			return &zapLogger{zap.NewNop()}
 		}
+
 		return logger
 	}
 	return loggerInstance
