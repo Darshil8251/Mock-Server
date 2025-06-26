@@ -35,7 +35,7 @@ type paginationParameters struct {
 	pageSizeKey      string
 	pageSentCount    int
 	pageSize         int
-	recordSentCount  int
+	sentRecordsCount int
 }
 
 func CreatePaginator(endpoint config.Endpoint) (Paginator, error) {

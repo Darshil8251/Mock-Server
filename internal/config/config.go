@@ -63,8 +63,8 @@ func validateConfig(cfg *APIConfig) error {
 	var mockLogger = logger.GetLogger()
 
 	if cfg == nil {
-		mockLogger.Warn("provided config is nil", errInvalidConfig)
-		return nil
+		mockLogger.Warn("`provided config is nil`", errInvalidConfig)
+		return errInvalidConfig
 	}
 
 	for _, endpoint := range cfg.Endpoints {

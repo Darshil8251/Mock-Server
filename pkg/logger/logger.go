@@ -1,7 +1,6 @@
 package logger
 
 import (
-	"fmt"
 	"os"
 
 	"go.uber.org/zap"
@@ -43,7 +42,6 @@ func CreateNewLogger() (Logger, error) {
 	var err error
 	var config zap.Config
 	level := os.Getenv("LEVEL")
-	fmt.Printf("level: %s\n", level)
 
 	if level == string(productionLevel) {
 		config = zap.NewProductionConfig()

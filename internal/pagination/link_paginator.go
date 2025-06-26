@@ -103,12 +103,16 @@ func (l *linkPaginator) Paginate(c *gin.Context) {
 	object := arr[0]
 	APIResponseObject := make([]any, 0, pageSize)
 
-	for len(APIResponseObject) < pageSize && l.paginationParameters.pageSentCount < l.paginationParameters.totalPageCount && l.paginationParameters.recordSentCount < l.paginationParameters.totalRecordCount {
+	if l.paginationParameters.sentRecordsCount+pageSize > l.paginationParameters.totalRecordCount {
+		pageSize = l.paginationParameters.totalRecordCount - l.paginationParameters.sentRecordsCount
+	}
+
+	for len(APIResponseObject) < pageSize {
 		APIResponseObject = append(APIResponseObject, object)
 	}
 
 	l.paginationParameters.pageSentCount++
-	l.paginationParameters.recordSentCount += pageSize
+	l.paginationParameters.sentRecordsCount += pageSize
 
 	l.responseObj[l.responseField] = APIResponseObject
 	l.responseObj[l.linkKey] = generatePageLink(c)

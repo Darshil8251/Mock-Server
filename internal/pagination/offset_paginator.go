@@ -15,11 +15,12 @@ import (
 )
 
 type offsetPaginator struct {
-	responseObj    map[string]interface{}
-	offsetKey      string
-	limitKey       string
-	offsetLocation pageParameterLocation
-	responseField  string
+	responseObj          map[string]interface{}
+	offsetKey            string
+	limitKey             string
+	offsetLocation       pageParameterLocation
+	responseField        string
+	paginationParameters paginationParameters
 }
 
 var _ Paginator = (*offsetPaginator)(nil)
@@ -29,15 +30,9 @@ func createOffsetPaginator(endpoint config.Endpoint) (Paginator, error) {
 
 	tmpLogger.InfoW("creating offset paginator", map[string]any{"endpoint": endpoint.Path})
 
-	p := offsetPaginator{
+	o := offsetPaginator{
 		offsetLocation: pageParameterLocation(endpoint.Pagination.Location),
 	}
-
-	defer func() {
-		tmpLogger.InfoW("offset paginator function", map[string]any{
-			"offsetPaginator": p,
-		})
-	}()
 
 	responseObj, err := loadResponseObj(endpoint.ResponseObjFilePath)
 	if err != nil {
@@ -46,9 +41,9 @@ func createOffsetPaginator(endpoint config.Endpoint) (Paginator, error) {
 		return nil, errors.Join(errInvalidResponse, err)
 	}
 
-	p.responseObj = responseObj
+	o.responseObj = responseObj
 
-	p.offsetKey, p.limitKey = parsePaginationParameters(endpoint)
+	o.paginationParameters = loadPaginationParameters(endpoint)
 
 	// Validate the response field
 	if endpoint.ResponseField != "" {
@@ -58,16 +53,16 @@ func createOffsetPaginator(endpoint config.Endpoint) (Paginator, error) {
 			tmpLogger.Warn(errInvalidResponseField.Error(), err)
 			return nil, errors.Join(errInvalidResponseField, err)
 		}
-		p.responseField = endpoint.ResponseField
-		return &p, nil
+		o.responseField = endpoint.ResponseField
+		return &o, nil
 	}
 
 	// If user not specified the response field, then find array field from the response object
 	if endpoint.ResponseField == "" {
 		for k, v := range responseObj {
 			if _, ok := v.([]interface{}); ok {
-				p.responseField = k
-				return &p, nil
+				o.responseField = k
+				return &o, nil
 			}
 		}
 	}
@@ -144,6 +139,10 @@ func (o *offsetPaginator) Paginate(c *gin.Context) {
 
 	object := arr[0]
 	APIResponseObject := make([]any, 0, pageSize)
+
+	if o.paginationParameters.sentRecordsCount+pageSize > o.paginationParameters.totalRecordCount {
+		pageSize = o.paginationParameters.totalRecordCount - o.paginationParameters.sentRecordsCount
+	}
 
 	for len(APIResponseObject) < int(pageSize) {
 		APIResponseObject = append(APIResponseObject, object)
