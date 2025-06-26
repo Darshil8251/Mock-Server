@@ -14,10 +14,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const (
-	defaultPageLimit = 100
-)
-
 type offsetPaginator struct {
 	responseObj    map[string]interface{}
 	offsetKey      string
@@ -52,7 +48,7 @@ func createOffsetPaginator(endpoint config.Endpoint) (Paginator, error) {
 
 	p.responseObj = responseObj
 
-	p.offsetKey, p.limitKey = validateAndParsePaginationOptions(endpoint)
+	p.offsetKey, p.limitKey = parsePaginationParameters(endpoint)
 
 	// Validate the response field
 	if endpoint.ResponseField != "" {
@@ -83,7 +79,7 @@ func createOffsetPaginator(endpoint config.Endpoint) (Paginator, error) {
 
 func (o *offsetPaginator) Paginate(c *gin.Context) {
 	var (
-		pageSize  = defaultPageLimit
+		pageSize  = defaultPageSize
 		tmpLogger = logger.GetLogger()
 	)
 
@@ -129,7 +125,7 @@ func (o *offsetPaginator) Paginate(c *gin.Context) {
 			}
 		}
 	case query:
-		size, err := strconv.Atoi(c.DefaultQuery(o.limitKey, strconv.Itoa(defaultPageLimit)))
+		size, err := strconv.Atoi(c.DefaultQuery(o.limitKey, strconv.Itoa(defaultPageSize)))
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get sizeValue"})
 			return

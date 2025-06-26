@@ -28,6 +28,16 @@ type Paginator interface {
 	Paginate(c *gin.Context)
 }
 
+type paginationParameters struct {
+	totalPageCount   int
+	totalRecordCount int
+	pageKey          string
+	pageSizeKey      string
+	pageSentCount    int
+	pageSize         int
+	recordSentCount  int
+}
+
 func CreatePaginator(endpoint config.Endpoint) (Paginator, error) {
 
 	switch paginationType(endpoint.Pagination.Type) {
@@ -41,6 +51,12 @@ func CreatePaginator(endpoint config.Endpoint) (Paginator, error) {
 		p, err := createOffsetPaginator(endpoint)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create offset paginator for endpoint: %s", endpoint.Path)
+		}
+		return p, nil
+	case link:
+		p, err := createLinkPaginator(endpoint)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create link paginator for endpoint: %s", endpoint.Path)
 		}
 		return p, nil
 	default:

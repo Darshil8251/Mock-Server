@@ -14,10 +14,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const (
-	defaultPageSize = 100
-)
-
 // pagePaginator responsible for the page based pagination
 type pagePaginator struct {
 	responseObj        map[string]interface{}
@@ -52,7 +48,7 @@ func createPagePaginator(endpoint config.Endpoint) (*pagePaginator, error) {
 
 	p.responseObj = responseObj
 
-	p.pageKey, p.pageSizeKey = validateAndParsePaginationOptions(endpoint)
+	p.pageKey, p.pageSizeKey = parsePaginationParameters(endpoint)
 
 	// Validate the response field
 	if endpoint.ResponseField != "" {

@@ -26,7 +26,7 @@ type Endpoint struct {
 type pagination struct {
 	Type     string         `json:"type"`
 	Location string         `json:"location"`
-	Options  map[string]any `json:"options"`
+	Options  map[string]any `json:"options,omitempty"`
 }
 
 func LoadConfig() (*APIConfig, error) {

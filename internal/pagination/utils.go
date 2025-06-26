@@ -12,13 +12,53 @@ import (
 )
 
 const (
-	defaultPageKey     = "page"
-	defaultPageSizeKey = "pageSize"
-	defaultOffsetKey   = "offset"
-	defaultLimitKey    = "limit"
+	defaultPageKey          = "page"
+	defaultPageSizeKey      = "pageSize"
+	defaultOffsetKey        = "offset"
+	defaultLimitKey         = "limit"
+	defaultLinkKey          = "link"
+	defaultPageSize         = 100
+	defaultPageCount        = 2
+	defaultTotalRecordCount = 200
 )
 
-func validateAndParsePaginationOptions(endpoint config.Endpoint) (pageKey, pageLimitKey string) {
+// loadPaginationParameters loads the pagination parameters
+func loadPaginationParameters(endpoint config.Endpoint) (p paginationParameters) {
+	p = paginationParameters{}
+
+	// Initialize with default values
+	p.totalPageCount = defaultPageCount
+	p.totalRecordCount = defaultTotalRecordCount
+	p.pageSize = defaultPageSize
+	p.pageKey = defaultPageKey
+	p.pageSizeKey = defaultPageSizeKey
+	p.pageSentCount = 0
+	p.recordSentCount = 0
+
+	if pageKey, ok := endpoint.Pagination.Options["pageKey"].(string); ok {
+		p.pageKey = pageKey
+	} 
+
+	if pageSizeKey, ok := endpoint.Pagination.Options["pageSizeKey"].(string); ok {
+		p.pageSizeKey = pageSizeKey
+	} 
+
+	if pageSize, ok := endpoint.Pagination.Options["pageSize"].(int); ok {
+		p.pageSize = pageSize
+	} 
+
+	if pageCount, ok := endpoint.Pagination.Options["pageCount"].(int); ok {
+		p.totalPageCount = pageCount
+	} 
+
+	if totalRecordCount, ok := endpoint.Pagination.Options["totalRecordCount"].(int); ok {
+		p.totalRecordCount = totalRecordCount
+	} 
+
+	return p
+}
+
+func parsePaginationParameters(endpoint config.Endpoint) (string, string) {
 	var tmpLogger = logger.GetLogger()
 
 	switch paginationType(endpoint.Pagination.Type) {
