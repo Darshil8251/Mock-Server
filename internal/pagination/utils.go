@@ -46,13 +46,15 @@ func loadPaginationParameters(endpoint config.Endpoint) (p paginationParameters)
 		p.pageSize = pageSize
 	}
 
-	if pageCount, ok := endpoint.Pagination.Options["pageCount"].(int); ok {
+	if pageCount, ok := endpoint.Pagination.Options["totalPage"].(int); ok {
 		p.totalPageCount = pageCount
 	}
 
-	if totalRecordCount, ok := endpoint.Pagination.Options["totalRecordCount"].(int); ok {
+	if totalRecordCount, ok := endpoint.Pagination.Options["totalRecord"].(int); ok {
 		p.totalRecordCount = totalRecordCount
 	}
+
+	p.pageParamsLocation = pageParameterLocation(endpoint.Pagination.Location)
 
 	return p
 }

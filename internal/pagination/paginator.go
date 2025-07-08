@@ -28,14 +28,16 @@ type Paginator interface {
 	Paginate(c *gin.Context)
 }
 
+// paginationParameters use to keep tract of the pagination parameters
 type paginationParameters struct {
-	totalPageCount   int
-	totalRecordCount int
-	pageKey          string
-	pageSizeKey      string
-	pageSentCount    int
-	pageSize         int
-	sentRecordsCount int
+	pageParamsLocation pageParameterLocation
+	totalPageCount     int
+	totalRecordCount   int
+	pageKey            string
+	pageSizeKey        string
+	pageSentCount      int
+	pageSize           int
+	sentRecordsCount   int
 }
 
 func CreatePaginator(endpoint config.Endpoint) (Paginator, error) {
@@ -57,6 +59,12 @@ func CreatePaginator(endpoint config.Endpoint) (Paginator, error) {
 		p, err := createLinkPaginator(endpoint)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create link paginator for endpoint: %s", endpoint.Path)
+		}
+		return p, nil
+	case token:
+		p, err := createTokenPaginator(endpoint)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create token paginator for endpoint : %s", endpoint.Path)
 		}
 		return p, nil
 	default:
