@@ -1,6 +1,6 @@
 # Mock Server
 
-Mock Server help to test cloud-to-cloud integrations, connector, and addon pagination part.
+Mock Server help to test cloud-to-cloud integrations, connector, and addon pagination.
 
 ## Features
 
@@ -53,8 +53,11 @@ The configuration file should be in JSON format with the following structure:
           "totalRecordCount": 50
         }
       },
-      "responseObjFilePath": "response/threatResponse.json",
-      "responseField": "threats"
+      "response": {
+        "filePath": "./threatExample.json",
+        "objectType": "array",
+        "fieldName": "myData"
+      }
     }
   ]
 }
@@ -77,5 +80,5 @@ The configuration file should be in JSON format with the following structure:
   - `linkKey`: Provide the link field in present in response object, default will be link.
   - `tokenKet`: Share the token field name present in response object, applicable for only token base pagination, default will be token.
 
-- `responseObjFilePath`: Path to a JSON file containing the response object template.
-- `responseField`: The key in the response object that is an array and will be paginated.
+- `response.filePath`: Path to a JSON file containing the response object template.
+- `response.fieldName`: The key in the response object that is an array and will be paginated.

@@ -19,8 +19,6 @@ type pagePaginator struct {
 	pageParamsLocation pageParameterLocation
 	responseField      string
 	pageSizeKey        string
-	totalPageCount     int
-	sendPageCount      int
 	totalRecord        int
 	sendRecordCount    int
 }
@@ -40,22 +38,22 @@ func createPagePaginator(endpoint config.Endpoint) (*pagePaginator, error) {
 
 	p.responseObj = responseObj
 
-	totalPage, ok := endpoint.Pagination.Options["totalPage"].(int)
-	if !ok {
-		totalPage = defaultPageCount
+	totalRecord := defaultTotalRecordCount
+
+	switch v := endpoint.Pagination.Options["totalRecord"].(type) {
+	case int:
+		totalRecord = v
+	case float64:
+		totalRecord = int(v)
+	case int64:
+		totalRecord = int(v)
+	case int32:
+		totalRecord = int(v)
 	}
 
-	p.totalPageCount = totalPage
-	fmt.Printf("endpoint options", endpoint.Pagination.Options)
-
-	totalRecord, ok := endpoint.Pagination.Options["totalRecord"].(int)
-	if !ok {
-		totalRecord = defaultTotalRecordCount
-	}
 	p.totalRecord = totalRecord
 
 	fmt.Println("total record count", p.totalRecord)
-
 	p.responseField, err = findResponseFieldName(endpoint.Response.FieldName, p.responseObj)
 	if err != nil {
 		return nil, errors.Join(errors.New("error to find response field"), err)
@@ -67,9 +65,9 @@ func createPagePaginator(endpoint config.Endpoint) (*pagePaginator, error) {
 
 // Paginate is the handler function for the page paginator
 func (p *pagePaginator) Paginate(c *gin.Context) {
-
-	if p.sendPageCount >= p.totalPageCount {
+	if p.sendRecordCount >= p.totalRecord {
 		c.JSON(http.StatusNotFound, gin.H{"error": "record not found"})
+		return
 	}
 
 	var pageSize = defaultPageSize
@@ -79,7 +77,7 @@ func (p *pagePaginator) Paginate(c *gin.Context) {
 		var requestBody map[string]any
 		err := c.ShouldBindJSON(&requestBody)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse request body"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 			return
 		}
 		value, found := requestBody[p.pageSizeKey]
@@ -88,13 +86,10 @@ func (p *pagePaginator) Paginate(c *gin.Context) {
 			case float64:
 				pageSize = int(v)
 			case int:
-				// Already an integer
 				pageSize = v
 			case int32, int64:
-				// Handle other integer types
 				pageSize = int(reflect.ValueOf(v).Int())
 			case uint, uint32, uint64:
-				// Handle unsigned integers
 				pageSize = int(reflect.ValueOf(v).Uint())
 			default:
 				c.JSON(http.StatusBadRequest, gin.H{"error": "size must be a number"})
@@ -136,7 +131,6 @@ func (p *pagePaginator) Paginate(c *gin.Context) {
 		APIResponseObject = append(APIResponseObject, object)
 	}
 
-	p.sendPageCount++
 	p.sendRecordCount += len(APIResponseObject)
 
 	p.responseObj[p.responseField] = APIResponseObject
