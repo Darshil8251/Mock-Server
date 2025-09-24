@@ -18,7 +18,7 @@ import (
 func CreateServer(ctx context.Context, cfg *config.APIConfig) error {
 	var (
 		mockLogger = logger.GetLogger()
-		port      = os.Getenv("PORT")
+		port       = os.Getenv("PORT")
 	)
 
 	engine := gin.New()

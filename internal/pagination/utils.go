@@ -3,9 +3,9 @@ package pagination
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 
 	"mock-server/internal/config"
 )
@@ -60,17 +60,12 @@ func loadPaginationParameters(endpoint config.Endpoint) (p paginationParameters)
 }
 
 // loadResponseObj loads the response object from the given file path
-func loadResponseObj(path string) (map[string]interface{}, error) {
+func loadResponseObj(path string) (responseObject map[string]any, err error) {
 	if path == "" {
 		return nil, errors.New("empty file path")
 	}
 
-	// Clean the path (removes ./ ../ etc.)
-	cleanPath := filepath.Clean(path)
-
-	responseObjFilePath := filepath.Join(".././", cleanPath)
-
-	file, err := os.Open(responseObjFilePath)
+	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
@@ -80,11 +75,33 @@ func loadResponseObj(path string) (map[string]interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	var responseObj map[string]interface{}
-	if err := json.Unmarshal(bytes, &responseObj); err != nil {
+	if err = json.Unmarshal(bytes, &responseObject); err != nil {
 		return nil, err
 	}
 
-	return responseObj, nil
+	return responseObject, nil
+}
+
+func findResponseFieldName(fieldName string, responseObject map[string]any) (string, error) {
+
+	if fieldName == "" {
+		for k, v := range responseObject {
+			if _, ok := v.([]any); ok {
+				fieldName = k
+				break
+			}
+		}
+		if fieldName == "" {
+			return "", fmt.Errorf("response field doesn't exist in response object")
+		}
+		return fieldName, nil
+	}
+
+	_, ok := responseObject[fieldName].([]any)
+	if !ok {
+		return "", fmt.Errorf("invalid response field name")
+	}
+
+	return fieldName, nil
+
 }

@@ -1,6 +1,7 @@
 package pagination
 
 import (
+	"errors"
 	"fmt"
 
 	"mock-server/internal/config"
@@ -46,7 +47,7 @@ func CreatePaginator(endpoint config.Endpoint) (Paginator, error) {
 	case page:
 		p, err := createPagePaginator(endpoint)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create page paginator for endpoint: %s", endpoint.Path)
+			return nil, errors.Join(errors.New("failed to create page pagination"), err)
 		}
 		return p, nil
 	case offset:
@@ -68,6 +69,10 @@ func CreatePaginator(endpoint config.Endpoint) (Paginator, error) {
 		}
 		return p, nil
 	default:
-		return nil, fmt.Errorf("unsupported pagination type: %s", endpoint.Pagination.Type)
+		p, err := createDefaultPaginator(endpoint)
+		if err != nil {
+			return nil, errors.Join(errors.New("failed to create default pagination"), err)
+		}
+		return p, nil
 	}
 }

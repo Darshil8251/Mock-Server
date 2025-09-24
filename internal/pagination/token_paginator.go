@@ -16,10 +16,10 @@ import (
 
 // pagePaginator responsible for the page based pagination
 type tokenPaginator struct {
-	responseObj           map[string]interface{}
-	tokenLocation         pageParameterLocation
-	responseField         string
-	paginationParameters  paginationParameters
+	responseObj          map[string]interface{}
+	tokenLocation        pageParameterLocation
+	tokenFieldName       string
+	paginationParameters paginationParameters
 }
 
 // createPagePaginator creates a new page paginator for the given endpoint
@@ -28,10 +28,10 @@ func createTokenPaginator(endpoint config.Endpoint) (*tokenPaginator, error) {
 
 	mockLogger.InfoW("creating page paginator", map[string]any{"endpoint": endpoint.Path})
 
-	t := tokenPaginator{
+	t := &tokenPaginator{
 		tokenLocation: pageParameterLocation(endpoint.Pagination.Location),
 	}
-	responseObj, err := loadResponseObj(endpoint.ResponseObjFilePath)
+	responseObj, err := loadResponseObj(endpoint.Response.FilePath)
 	if err != nil {
 		errInvalidResponse := fmt.Errorf("invalid response file path for endpoint: %s", endpoint.Path)
 		mockLogger.Warn(errInvalidResponse.Error(), err)
@@ -42,30 +42,11 @@ func createTokenPaginator(endpoint config.Endpoint) (*tokenPaginator, error) {
 
 	t.paginationParameters = loadPaginationParameters(endpoint)
 
-	// Validate the response field
-	if endpoint.ResponseField != "" {
-		_, ok := responseObj[endpoint.ResponseField].([]any)
-		if !ok {
-			errInvalidResponseField := fmt.Errorf("invalid response field for endpoint: %v", endpoint.Path)
-			mockLogger.Warn(errInvalidResponseField.Error(), err)
-			return nil, errors.Join(errInvalidResponseField, err)
-		}
-		t.responseField = endpoint.ResponseField
-		return &t, nil
+	t.tokenFieldName, err = findResponseFieldName(endpoint.Response.FieldName, t.responseObj)
+	if err != nil {
+		return nil, errors.Join(errors.New("error to find response field"), err)
 	}
-
-	if endpoint.ResponseField == "" {
-		for k, v := range responseObj {
-			if _, ok := v.([]interface{}); ok {
-				t.responseField = k
-				return &t, nil
-			}
-		}
-	}
-
-	errInvalidResponseField := fmt.Errorf("response field not present in response object for endpoint: %v", endpoint.Path)
-	mockLogger.Warn(errInvalidResponseField.Error(), err)
-	return nil, errors.Join(errInvalidResponseField, err)
+	return t, nil
 }
 
 // Paginate is the handler function for the page paginator
@@ -122,7 +103,7 @@ func (t *tokenPaginator) Paginate(c *gin.Context) {
 	}
 
 	// 3. Find the response object
-	arr, ok := t.responseObj[t.responseField].([]any)
+	arr, ok := t.responseObj[t.tokenFieldName].([]any)
 	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid response field"})
 		return
@@ -142,7 +123,7 @@ func (t *tokenPaginator) Paginate(c *gin.Context) {
 	t.paginationParameters.pageSentCount++
 	t.paginationParameters.sentRecordsCount += pageSize
 
-	t.responseObj[t.responseField] = APIResponseObject
+	t.responseObj[t.tokenFieldName] = APIResponseObject
 
 	jsonResponse, err := json.Marshal(t.responseObj)
 	if err != nil {

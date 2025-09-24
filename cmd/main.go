@@ -10,7 +10,6 @@ import (
 	"mock-server/internal/config"
 	"mock-server/internal/server"
 	"mock-server/pkg/logger"
-
 )
 
 func main() {
@@ -28,10 +27,9 @@ func main() {
 	}
 	mockLogger.InfoW("config successfully loaded", map[string]any{"config": config})
 
-	
 	ctx, stop := signal.NotifyContext(context.Background(),
-		os.Interrupt,    // Ctrl+C
-		syscall.SIGTERM, // Kubernetes/Docker stop
+		os.Interrupt, // Ctrl+C
+		syscall.SIGTERM,
 		syscall.SIGQUIT) // Graceful shutdown
 	defer stop()
 

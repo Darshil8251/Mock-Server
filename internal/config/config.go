@@ -12,15 +12,20 @@ type APIConfig struct {
 }
 
 type Endpoint struct {
-	Path                string         `json:"path"`
-	Method              string         `json:"method"`
-	Headers             map[string]any `json:"headers"`
-	QueryParams         map[string]any `json:"queryParams"`
-	RequestBody         map[string]any `json:"requestBody"`
-	RateLimit           int            `json:"rateLimit"`
-	Pagination          pagination     `json:"pagination"`
-	ResponseObjFilePath string         `json:"responseObjFilePath"`
-	ResponseField       string         `json:"responseField,omitempty"`
+	Path        string         `json:"path"`
+	Method      string         `json:"method"`
+	Headers     map[string]any `json:"headers"`
+	QueryParams map[string]any `json:"queryParams"`
+	RequestBody map[string]any `json:"requestBody"`
+	RateLimit   int            `json:"rateLimit"`
+	Pagination  pagination     `json:"pagination"`
+	Response    ResponseParams `json":"response"`
+}
+
+type ResponseParams struct {
+	FilePath   string `json:"filePath"`
+	ObjectType string `json:"objectType"`
+	FieldName  string `json:"fieldName"`
 }
 
 type pagination struct {

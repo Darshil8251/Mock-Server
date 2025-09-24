@@ -9,85 +9,80 @@ import (
 	"strconv"
 
 	"mock-server/internal/config"
-	"mock-server/pkg/logger"
 
 	"github.com/gin-gonic/gin"
 )
 
 // pagePaginator responsible for the page based pagination
 type pagePaginator struct {
-	responseObj          map[string]interface{}
-	pageParamsLocation   pageParameterLocation
-	responseField        string
-	paginationParameters paginationParameters
+	responseObj        map[string]any
+	pageParamsLocation pageParameterLocation
+	responseField      string
+	pageSizeKey        string
+	totalPageCount     int
+	sendPageCount      int
+	totalRecord        int
+	sendRecordCount    int
 }
 
 // createPagePaginator creates a new page paginator for the given endpoint
 func createPagePaginator(endpoint config.Endpoint) (*pagePaginator, error) {
-	var mockLogger = logger.GetLogger()
 
-	mockLogger.InfoW("creating page paginator", map[string]any{"endpoint": endpoint.Path})
-
-	p := pagePaginator{
+	p := &pagePaginator{
 		pageParamsLocation: pageParameterLocation(endpoint.Pagination.Location),
 	}
 
-	responseObj, err := loadResponseObj(endpoint.ResponseObjFilePath)
+	responseObj, err := loadResponseObj(endpoint.Response.FilePath)
 	if err != nil {
 		errInvalidResponse := fmt.Errorf("invalid response file path for endpoint: %s", endpoint.Path)
-		mockLogger.Warn(errInvalidResponse.Error(), err)
 		return nil, errors.Join(errInvalidResponse, err)
 	}
 
 	p.responseObj = responseObj
 
-	p.paginationParameters = loadPaginationParameters(endpoint)
-
-	// Validate the response field
-	if endpoint.ResponseField != "" {
-		_, ok := responseObj[endpoint.ResponseField].([]any)
-		if !ok {
-			errInvalidResponseField := fmt.Errorf("invalid response field for endpoint: %v", endpoint.Path)
-			mockLogger.Warn(errInvalidResponseField.Error(), err)
-			return nil, errors.Join(errInvalidResponseField, err)
-		}
-		p.responseField = endpoint.ResponseField
-		return &p, nil
+	totalPage, ok := endpoint.Pagination.Options["totalPage"].(int)
+	if !ok {
+		totalPage = defaultPageCount
 	}
 
-	if endpoint.ResponseField == "" {
-		for k, v := range responseObj {
-			if _, ok := v.([]interface{}); ok {
-				p.responseField = k
-				return &p, nil
-			}
-		}
+	p.totalPageCount = totalPage
+	fmt.Printf("endpoint options", endpoint.Pagination.Options)
+
+	totalRecord, ok := endpoint.Pagination.Options["totalRecord"].(int)
+	if !ok {
+		totalRecord = defaultTotalRecordCount
+	}
+	p.totalRecord = totalRecord
+
+	fmt.Println("total record count", p.totalRecord)
+
+	p.responseField, err = findResponseFieldName(endpoint.Response.FieldName, p.responseObj)
+	if err != nil {
+		return nil, errors.Join(errors.New("error to find response field"), err)
 	}
 
-	errInvalidResponseField := fmt.Errorf("response field not present in response object for endpoint: %v", endpoint.Path)
-	mockLogger.Warn(errInvalidResponseField.Error(), err)
-	return nil, errors.Join(errInvalidResponseField, err)
+	return p, nil
+
 }
 
 // Paginate is the handler function for the page paginator
 func (p *pagePaginator) Paginate(c *gin.Context) {
 
-	var pageSize = defaultPageSize
-
-	if p.paginationParameters.pageSentCount >= p.paginationParameters.totalPageCount {
+	if p.sendPageCount >= p.totalPageCount {
 		c.JSON(http.StatusNotFound, gin.H{"error": "record not found"})
 	}
 
+	var pageSize = defaultPageSize
 	// Extract pagination params from the respective location
 	switch p.pageParamsLocation {
 	case body:
-		var requestBody map[string]interface{}
+		var requestBody map[string]any
 		err := c.ShouldBindJSON(&requestBody)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse request body"})
 			return
 		}
-		value, found := requestBody[p.paginationParameters.pageSizeKey]
+		value, found := requestBody[p.pageSizeKey]
 		if found {
 			switch v := value.(type) {
 			case float64:
@@ -108,13 +103,13 @@ func (p *pagePaginator) Paginate(c *gin.Context) {
 		}
 
 	case header:
-		if v := c.GetHeader(p.paginationParameters.pageSizeKey); v != "" {
+		if v := c.GetHeader(p.pageSizeKey); v != "" {
 			if p, err := strconv.Atoi(v); err == nil && p > 0 {
 				pageSize = p
 			}
 		}
 	case query:
-		size, err := strconv.Atoi(c.DefaultQuery(p.paginationParameters.pageSizeKey, strconv.Itoa(defaultPageSize)))
+		size, err := strconv.Atoi(c.DefaultQuery(p.pageSizeKey, strconv.Itoa(defaultPageSize)))
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get sizeValue"})
 			return
@@ -132,16 +127,17 @@ func (p *pagePaginator) Paginate(c *gin.Context) {
 	object := arr[0]
 	APIResponseObject := make([]any, 0, pageSize)
 
-	if p.paginationParameters.sentRecordsCount+pageSize > p.paginationParameters.totalRecordCount {
-		pageSize = p.paginationParameters.totalRecordCount - p.paginationParameters.sentRecordsCount
+	if p.totalRecord-p.sendRecordCount < pageSize {
+
+		pageSize = p.totalRecord - p.sendRecordCount
 	}
 
 	for len(APIResponseObject) < pageSize {
 		APIResponseObject = append(APIResponseObject, object)
 	}
 
-	p.paginationParameters.pageSentCount++
-	p.paginationParameters.sentRecordsCount += pageSize
+	p.sendPageCount++
+	p.sendRecordCount += len(APIResponseObject)
 
 	p.responseObj[p.responseField] = APIResponseObject
 

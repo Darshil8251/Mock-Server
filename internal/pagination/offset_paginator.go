@@ -28,11 +28,11 @@ func createOffsetPaginator(endpoint config.Endpoint) (Paginator, error) {
 
 	tmpLogger.InfoW("creating offset paginator", map[string]any{"endpoint": endpoint.Path})
 
-	o := offsetPaginator{
+	o := &offsetPaginator{
 		offsetLocation: pageParameterLocation(endpoint.Pagination.Location),
 	}
 
-	responseObj, err := loadResponseObj(endpoint.ResponseObjFilePath)
+	responseObj, err := loadResponseObj(endpoint.Response.FilePath)
 	if err != nil {
 		errInvalidResponse := fmt.Errorf("invalid response file path for endpoint: %s", endpoint.Path)
 		tmpLogger.Warn(errInvalidResponse.Error(), err)
@@ -43,31 +43,13 @@ func createOffsetPaginator(endpoint config.Endpoint) (Paginator, error) {
 
 	o.paginationParameters = loadPaginationParameters(endpoint)
 
-	// Validate the response field
-	if endpoint.ResponseField != "" {
-		_, ok := responseObj[endpoint.ResponseField].([]any)
-		if !ok {
-			errInvalidResponseField := fmt.Errorf("invalid response field for endpoint: %v", endpoint.Path)
-			tmpLogger.Warn(errInvalidResponseField.Error(), err)
-			return nil, errors.Join(errInvalidResponseField, err)
-		}
-		o.responseField = endpoint.ResponseField
-		return &o, nil
+	o.responseField, err = findResponseFieldName(endpoint.Response.FieldName, o.responseObj)
+	if err != nil {
+		return nil, errors.Join(errors.New("error to find response field"), err)
 	}
 
-	// If user not specified the response field, then find array field from the response object
-	if endpoint.ResponseField == "" {
-		for k, v := range responseObj {
-			if _, ok := v.([]interface{}); ok {
-				o.responseField = k
-				return &o, nil
-			}
-		}
-	}
+	return o, nil
 
-	errInvalidResponseField := fmt.Errorf("response field not present in response object for endpoint: %v", endpoint.Path)
-	tmpLogger.Warn(errInvalidResponseField.Error(), err)
-	return nil, errors.Join(errInvalidResponseField, err)
 }
 
 func (o *offsetPaginator) Paginate(c *gin.Context) {

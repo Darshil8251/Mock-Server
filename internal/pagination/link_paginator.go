@@ -28,7 +28,7 @@ func createLinkPaginator(endpoint config.Endpoint) (Paginator, error) {
 
 	l := &linkPaginator{}
 
-	responseObj, err := loadResponseObj(endpoint.ResponseObjFilePath)
+	responseObj, err := loadResponseObj(endpoint.Response.FilePath)
 	if err != nil {
 		errInvalidResponse := fmt.Errorf("invalid response file path for endpoint: %s", endpoint.Path)
 		tmpLogger.Warn(errInvalidResponse.Error(), err)
@@ -51,31 +51,12 @@ func createLinkPaginator(endpoint config.Endpoint) (Paginator, error) {
 		l.linkKey = endpoint.Pagination.Options["linkKey"].(string)
 	}
 
-	// Validate the response field
-	if endpoint.ResponseField != "" {
-		_, ok := responseObj[endpoint.ResponseField].([]any)
-		if !ok {
-			errInvalidResponseField := fmt.Errorf("invalid response field for endpoint: %v", endpoint.Path)
-			tmpLogger.Warn(errInvalidResponseField.Error(), err)
-			return nil, errors.Join(errInvalidResponseField, err)
-		}
-		l.responseField = endpoint.ResponseField
-		return l, nil
+	l.responseField, err = findResponseFieldName(endpoint.Response.FieldName, l.responseObj)
+	if err != nil {
+		return nil, errors.Join(errors.New("error to find response field"), err)
 	}
 
-	// If user not specified the response field, then find array field from the response object
-	if endpoint.ResponseField == "" {
-		for k, v := range responseObj {
-			if _, ok := v.([]interface{}); ok {
-				l.responseField = k
-				return l, nil
-			}
-		}
-	}
-
-	errInvalidResponseField := fmt.Errorf("response field not present in response object for endpoint: %v", endpoint.Path)
-	tmpLogger.Warn(errInvalidResponseField.Error(), err)
-	return nil, errors.Join(errInvalidResponseField, err)
+	return l, nil
 }
 
 func (l *linkPaginator) Paginate(c *gin.Context) {
