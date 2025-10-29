@@ -22,6 +22,7 @@ func CreateServer(ctx context.Context, cfg *config.APIConfig) error {
 
 	engine := gin.New()
 	engine.Use(gin.Recovery())
+	engine.Use(gin.Logger())
 
 	// Setup routers
 	err := router.SetupRoutes(engine, cfg)

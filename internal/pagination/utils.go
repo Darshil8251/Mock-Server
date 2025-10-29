@@ -32,8 +32,6 @@ func loadPaginationParameters(endpoint config.Endpoint) (p paginationParameters)
 	p.sendPageCount = 0
 	p.sendRecordsCount = 0
 
-	fmt.Printf("Loading pagination parameters for endpoint: %s\n", endpoint.Pagination.Options)
-
 	switch v := endpoint.Pagination.Options["pageSize"].(type) {
 	case float64:
 		p.pageSize = int(v)
@@ -50,8 +48,6 @@ func loadPaginationParameters(endpoint config.Endpoint) (p paginationParameters)
 
 	// Calculate total pages using integer arithmetic
 	p.totalPageCount = (p.totalRecord + p.pageSize - 1) / p.pageSize
-
-	fmt.Println("Pagination Parameters Loaded:", p)
 
 	return p
 }
