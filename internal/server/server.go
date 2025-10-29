@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"mock-server/internal/config"
-	"mock-server/internal/middleware"
 	"mock-server/internal/router"
 	"mock-server/pkg/logger"
 
@@ -23,7 +22,6 @@ func CreateServer(ctx context.Context, cfg *config.APIConfig) error {
 
 	engine := gin.New()
 	engine.Use(gin.Recovery())
-	engine.Use(middleware.LoggerMiddleware())
 
 	// Setup routers
 	err := router.SetupRoutes(engine, cfg)

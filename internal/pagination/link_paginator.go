@@ -2,14 +2,10 @@ package pagination
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"mock-server/internal/config"
 	"net/http"
 	"net/url"
-	"strconv"
-
-	"mock-server/pkg/logger"
 
 	"github.com/gin-gonic/gin"
 )
@@ -24,105 +20,87 @@ type linkPaginator struct {
 var _ Paginator = (*linkPaginator)(nil)
 
 func createLinkPaginator(endpoint config.Endpoint) (Paginator, error) {
-	var tmpLogger = logger.GetLogger()
 
 	l := &linkPaginator{}
 
+	l.paginationParameters = loadPaginationParameters(endpoint)
+	l.linkKey = "nextPage"
+	linkKeyName, ok := endpoint.Pagination.Options["linkKey"].(string)
+	if !ok {
+		return nil, fmt.Errorf("invalid link key for the endpoint: %v", endpoint.Path)
+	}
+	l.linkKey = linkKeyName
+
 	responseObj, err := loadResponseObj(endpoint.Response.FilePath)
 	if err != nil {
-		errInvalidResponse := fmt.Errorf("invalid response file path for endpoint: %s", endpoint.Path)
-		tmpLogger.Warn(errInvalidResponse.Error(), err)
-		return nil, errors.Join(errInvalidResponse, err)
+		return nil, fmt.Errorf("invalid response file path for endpoint: %s, %w", endpoint.Path, err)
 	}
 
 	l.responseObj = responseObj
 
-	l.linkKey = defaultLinkKey
-
-	l.paginationParameters = loadPaginationParameters(endpoint)
-
-	if _, ok := endpoint.Pagination.Options["linkKey"].(string); ok {
-		_, ok := responseObj[endpoint.Pagination.Options["linkKey"].(string)]
-		if !ok {
-			errInvalidLinkKey := fmt.Errorf("invalid link key for the endpoint: %v", endpoint.Path)
-			tmpLogger.Warn(errInvalidLinkKey.Error(), err)
-			return nil, errors.Join(errInvalidLinkKey, err)
-		}
-		l.linkKey = endpoint.Pagination.Options["linkKey"].(string)
-	}
-
 	l.responseField, err = findResponseFieldName(endpoint.Response.FieldName, l.responseObj)
 	if err != nil {
-		return nil, errors.Join(errors.New("error to find response field"), err)
+		return nil, fmt.Errorf("error to find response field: %w", err)
 	}
 
 	return l, nil
 }
 
 func (l *linkPaginator) Paginate(c *gin.Context) {
-	var (
-		pageSize = defaultPageSize
-	)
-
-	if l.paginationParameters.pageSentCount >= l.paginationParameters.totalPageCount {
-		c.JSON(404, gin.H{"error": "record not found"})
-		return
-	}
-
-	if v := c.Query(l.paginationParameters.pageSizeKey); v != "" {
-		if p, err := strconv.Atoi(v); err == nil && p > 0 {
-			pageSize = p
-		}
-	}
-
+	// Get single object from response field
 	arr, ok := l.responseObj[l.responseField].([]any)
-	if !ok {
-		c.JSON(500, gin.H{"error": "invalid response field"})
+	if !ok || len(arr) == 0 {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid response field"})
+		return
+	}
+	object := arr[0]
+
+	// Calculate number of items for this page
+	if l.paginationParameters.sendRecordsCount >= l.paginationParameters.totalRecord {
+		c.JSON(http.StatusNotFound, gin.H{"msg": "No record found"})
 		return
 	}
 
-	object := arr[0]
-	APIResponseObject := make([]any, 0, pageSize)
+	numItems := l.paginationParameters.pageSize
 
-	if l.paginationParameters.sentRecordsCount+pageSize > l.paginationParameters.totalRecordCount {
-		pageSize = l.paginationParameters.totalRecordCount - l.paginationParameters.sentRecordsCount
+	// last page
+	if l.paginationParameters.sendPageCount+1 == l.paginationParameters.totalPageCount {
+		numItems = l.paginationParameters.totalRecord - l.paginationParameters.sendRecordsCount
 	}
 
-	for len(APIResponseObject) < pageSize {
+	// Build response array
+	APIResponseObject := make([]any, 0, numItems)
+	for i := 0; i < numItems; i++ {
 		APIResponseObject = append(APIResponseObject, object)
 	}
-
-	l.paginationParameters.pageSentCount++
-	l.paginationParameters.sentRecordsCount += pageSize
-
 	l.responseObj[l.responseField] = APIResponseObject
-	l.responseObj[l.linkKey] = generatePageLink(c)
+	l.paginationParameters.sendRecordsCount += numItems
+	l.paginationParameters.sendPageCount++
+
+	// Generate next page link or set to null
+	if l.paginationParameters.sendPageCount < l.paginationParameters.totalPageCount {
+		l.responseObj[l.linkKey] = generatePageLink(c, l.paginationParameters.sendPageCount+1, l.paginationParameters.pageSize)
+	} else {
+		l.responseObj[l.linkKey] = nil
+	}
 
 	jsonResponse, err := json.Marshal(l.responseObj)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create response object"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "something went wrong"})
 		return
 	}
-
 	c.Data(http.StatusOK, "application/json", jsonResponse)
-
 }
 
-func generatePageLink(c *gin.Context) string {
+func generatePageLink(c *gin.Context, nextPage int, pageSize int) string {
 	scheme := "http"
 	if c.Request.TLS != nil || c.Request.Header.Get("X-Forwarded-Proto") == "https" {
 		scheme = "https"
 	}
-
 	u := &url.URL{
-		Scheme:   scheme,
-		Host:     c.Request.Host,
-		Path:     c.Request.URL.Path,
-		RawQuery: c.Request.URL.RawQuery,
+		Scheme: scheme,
+		Host:   c.Request.Host,
+		Path:   c.Request.URL.Path,
 	}
-
-	values, _ := url.ParseQuery(u.RawQuery)
-
-	u.RawQuery = values.Encode()
 	return u.String()
 }

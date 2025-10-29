@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"reflect"
-	"strconv"
+	// "reflect"
+	// "strconv"
 
 	"mock-server/internal/config"
 	"mock-server/pkg/logger"
@@ -59,48 +59,48 @@ func (o *offsetPaginator) Paginate(c *gin.Context) {
 	)
 
 	// Extract pagination params from the respective location
-	switch o.offsetLocation {
-	case body:
-		var requestBody map[string]interface{}
-		err := c.ShouldBindJSON(&requestBody)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse request body"})
-			return
-		}
-		value, found := requestBody[o.paginationParameters.pageSizeKey]
-		if found {
-			switch v := value.(type) {
-			case float64:
-				pageSize = int(v)
-			case int:
-				// Already an integer
-				pageSize = v
-			case int32, int64:
-				// Handle other integer types
-				pageSize = int(reflect.ValueOf(v).Int())
-			case uint, uint32, uint64:
-				// Handle unsigned integers
-				pageSize = int(reflect.ValueOf(v).Uint())
-			default:
-				c.JSON(http.StatusBadRequest, gin.H{"error": "size must be a number"})
-				return
-			}
-		}
+	// switch o.offsetLocation {
+	// case body:
+	// 	var requestBody map[string]interface{}
+	// 	err := c.ShouldBindJSON(&requestBody)
+	// 	if err != nil {
+	// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse request body"})
+	// 		return
+	// 	}
+	// 	value, found := requestBody[o.paginationParameters.pageSizeKey]
+	// 	if found {
+	// 		switch v := value.(type) {
+	// 		case float64:
+	// 			pageSize = int(v)
+	// 		case int:
+	// 			// Already an integer
+	// 			pageSize = v
+	// 		case int32, int64:
+	// 			// Handle other integer types
+	// 			pageSize = int(reflect.ValueOf(v).Int())
+	// 		case uint, uint32, uint64:
+	// 			// Handle unsigned integers
+	// 			pageSize = int(reflect.ValueOf(v).Uint())
+	// 		default:
+	// 			c.JSON(http.StatusBadRequest, gin.H{"error": "size must be a number"})
+	// 			return
+	// 		}
+	// 	}
 
-	case header:
-		if v := c.GetHeader(o.paginationParameters.pageSizeKey); v != "" {
-			if p, err := strconv.Atoi(v); err == nil && p > 0 {
-				pageSize = p
-			}
-		}
-	case query:
-		size, err := strconv.Atoi(c.DefaultQuery(o.paginationParameters.pageSizeKey, strconv.Itoa(defaultPageSize)))
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get sizeValue"})
-			return
-		}
-		pageSize = size
-	}
+	// case header:
+	// 	if v := c.GetHeader(o.paginationParameters.pageSizeKey); v != "" {
+	// 		if p, err := strconv.Atoi(v); err == nil && p > 0 {
+	// 			pageSize = p
+	// 		}
+	// 	}
+	// case query:
+	// 	size, err := strconv.Atoi(c.DefaultQuery(o.paginationParameters.pageSizeKey, strconv.Itoa(defaultPageSize)))
+	// 	if err != nil {
+	// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get sizeValue"})
+	// 		return
+	// 	}
+	// 	pageSize = size
+	// }
 
 	tmpLogger.InfoW("page value size", map[string]any{"size": pageSize})
 
@@ -114,9 +114,9 @@ func (o *offsetPaginator) Paginate(c *gin.Context) {
 	object := arr[0]
 	APIResponseObject := make([]any, 0, pageSize)
 
-	if o.paginationParameters.sentRecordsCount+pageSize > o.paginationParameters.totalRecordCount {
-		pageSize = o.paginationParameters.totalRecordCount - o.paginationParameters.sentRecordsCount
-	}
+	// if o.paginationParameters.sentRecordsCount+pageSize > o.paginationParameters.totalRecord {
+	// 	pageSize = o.paginationParameters.totalRecord - o.paginationParameters.sentRecordsCount
+	// }
 
 	for len(APIResponseObject) < int(pageSize) {
 		APIResponseObject = append(APIResponseObject, object)

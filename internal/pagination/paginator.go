@@ -31,14 +31,11 @@ type Paginator interface {
 
 // paginationParameters use to keep tract of the pagination parameters
 type paginationParameters struct {
-	pageParamsLocation pageParameterLocation
-	totalPageCount     int
-	totalRecordCount   int
-	pageKey            string
-	pageSizeKey        string
-	pageSentCount      int
-	pageSize           int
-	sentRecordsCount   int
+	totalPageCount   int // No of pages
+	totalRecord      int // No of records to be send
+	pageSize         int // Size of individual page
+	sendRecordsCount int // No of records sent till now
+	sendPageCount    int // No of pages sent till now
 }
 
 func CreatePaginator(endpoint config.Endpoint) (Paginator, error) {

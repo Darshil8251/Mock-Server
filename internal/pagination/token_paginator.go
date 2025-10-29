@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
-	"strconv"
+	// "strconv"
 
 	"mock-server/internal/config"
 	"mock-server/pkg/logger"
@@ -54,9 +54,9 @@ func (t *tokenPaginator) Paginate(c *gin.Context) {
 
 	var pageSize = defaultPageSize
 
-	if t.paginationParameters.pageSentCount >= t.paginationParameters.totalPageCount {
-		c.JSON(http.StatusNotFound, gin.H{"error": "record not found"})
-	}
+	// if t.paginationParameters.pageSentCount >= t.paginationParameters.totalPageCount {
+	// 	c.JSON(http.StatusNotFound, gin.H{"error": "record not found"})
+	// }
 
 	// Extract pagination params from the respective location
 	switch t.tokenLocation {
@@ -67,7 +67,7 @@ func (t *tokenPaginator) Paginate(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse request body"})
 			return
 		}
-		value, found := requestBody[t.paginationParameters.pageSizeKey]
+		value, found := requestBody["Data"]
 		if found {
 			switch v := value.(type) {
 			case float64:
@@ -87,19 +87,19 @@ func (t *tokenPaginator) Paginate(c *gin.Context) {
 			}
 		}
 
-	case header:
-		if v := c.GetHeader(t.paginationParameters.pageSizeKey); v != "" {
-			if p, err := strconv.Atoi(v); err == nil && p > 0 {
-				pageSize = p
-			}
-		}
-	case query:
-		size, err := strconv.Atoi(c.DefaultQuery(t.paginationParameters.pageSizeKey, strconv.Itoa(defaultPageSize)))
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get sizeValue"})
-			return
-		}
-		pageSize = size
+		// case header:
+		// 	if v := c.GetHeader(t.paginationParameters.pageSizeKey); v != "" {
+		// 		if p, err := strconv.Atoi(v); err == nil && p > 0 {
+		// 			pageSize = p
+		// 		}
+		// 	}
+		// case query:
+		// 	size, err := strconv.Atoi(c.DefaultQuery(t.paginationParameters.pageSizeKey, strconv.Itoa(defaultPageSize)))
+		// 	if err != nil {
+		// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get sizeValue"})
+		// 		return
+		// 	}
+		// 	pageSize = size
 	}
 
 	// 3. Find the response object
@@ -112,16 +112,16 @@ func (t *tokenPaginator) Paginate(c *gin.Context) {
 	object := arr[0]
 	APIResponseObject := make([]any, 0, pageSize)
 
-	if t.paginationParameters.sentRecordsCount+pageSize > t.paginationParameters.totalRecordCount {
-		pageSize = t.paginationParameters.totalRecordCount - t.paginationParameters.sentRecordsCount
-	}
+	// if t.paginationParameters.sentRecordsCount+pageSize > t.paginationParameters.totalRecord {
+	// 	pageSize = t.paginationParameters.totalRecord - t.paginationParameters.sentRecordsCount
+	// }
 
 	for len(APIResponseObject) < pageSize {
 		APIResponseObject = append(APIResponseObject, object)
 	}
 
-	t.paginationParameters.pageSentCount++
-	t.paginationParameters.sentRecordsCount += pageSize
+	// t.paginationParameters.pageSentCount++
+	// t.paginationParameters.sentRecordsCount += pageSize
 
 	t.responseObj[t.tokenFieldName] = APIResponseObject
 
