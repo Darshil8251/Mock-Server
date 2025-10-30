@@ -33,11 +33,6 @@ func createOffsetPaginator(endpoint config.Endpoint) (Paginator, error) {
 
 	o.paginationParameters = loadPaginationParameters(endpoint)
 
-	o.responseField, err = findResponseFieldName(endpoint.Response.FieldName, o.responseObj)
-	if err != nil {
-		return nil, errors.Join(errors.New("error to find response field"), err)
-	}
-
 	o.responseField = endpoint.Response.FieldName
 
 	offsetField, ok := endpoint.Pagination.Options["offsetKey"].(string)
