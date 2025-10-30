@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"reflect"
-	// "strconv"
 
 	"mock-server/internal/config"
 	"mock-server/pkg/logger"
@@ -17,20 +15,18 @@ import (
 // pagePaginator responsible for the page based pagination
 type tokenPaginator struct {
 	responseObj          map[string]interface{}
-	tokenLocation        pageParameterLocation
 	tokenFieldName       string
+	responseFieldName    string
 	paginationParameters paginationParameters
 }
 
 // createPagePaginator creates a new page paginator for the given endpoint
 func createTokenPaginator(endpoint config.Endpoint) (*tokenPaginator, error) {
-	var mockLogger = logger.GetLogger()
+	var mockLogger = logger.GetLogger().With(map[string]any{"endpoint": endpoint.Path})
 
-	mockLogger.InfoW("creating page paginator", map[string]any{"endpoint": endpoint.Path})
+	mockLogger.Info("creating token paginator")
 
-	t := &tokenPaginator{
-		tokenLocation: pageParameterLocation(endpoint.Pagination.Location),
-	}
+	t := &tokenPaginator{}
 	responseObj, err := loadResponseObj(endpoint.Response.FilePath)
 	if err != nil {
 		errInvalidResponse := fmt.Errorf("invalid response file path for endpoint: %s", endpoint.Path)
@@ -42,92 +38,58 @@ func createTokenPaginator(endpoint config.Endpoint) (*tokenPaginator, error) {
 
 	t.paginationParameters = loadPaginationParameters(endpoint)
 
-	t.tokenFieldName, err = findResponseFieldName(endpoint.Response.FieldName, t.responseObj)
-	if err != nil {
-		return nil, errors.Join(errors.New("error to find response field"), err)
+	tokenField, ok := endpoint.Pagination.Options["tokenFieldName"].(string)
+	if !ok {
+		return nil, fmt.Errorf("invalid token field name for endpoint: %s", endpoint.Path)
 	}
+	t.tokenFieldName = tokenField
+	t.responseFieldName = endpoint.Response.FieldName
+
 	return t, nil
 }
 
 // Paginate is the handler function for the page paginator
 func (t *tokenPaginator) Paginate(c *gin.Context) {
 
-	var pageSize = defaultPageSize
-
-	// if t.paginationParameters.pageSentCount >= t.paginationParameters.totalPageCount {
-	// 	c.JSON(http.StatusNotFound, gin.H{"error": "record not found"})
-	// }
-
-	// Extract pagination params from the respective location
-	switch t.tokenLocation {
-	case body:
-		var requestBody map[string]interface{}
-		err := c.ShouldBindJSON(&requestBody)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse request body"})
-			return
-		}
-		value, found := requestBody["Data"]
-		if found {
-			switch v := value.(type) {
-			case float64:
-				pageSize = int(v)
-			case int:
-				// Already an integer
-				pageSize = v
-			case int32, int64:
-				// Handle other integer types
-				pageSize = int(reflect.ValueOf(v).Int())
-			case uint, uint32, uint64:
-				// Handle unsigned integers
-				pageSize = int(reflect.ValueOf(v).Uint())
-			default:
-				c.JSON(http.StatusBadRequest, gin.H{"error": "size must be a number"})
-				return
-			}
-		}
-
-		// case header:
-		// 	if v := c.GetHeader(t.paginationParameters.pageSizeKey); v != "" {
-		// 		if p, err := strconv.Atoi(v); err == nil && p > 0 {
-		// 			pageSize = p
-		// 		}
-		// 	}
-		// case query:
-		// 	size, err := strconv.Atoi(c.DefaultQuery(t.paginationParameters.pageSizeKey, strconv.Itoa(defaultPageSize)))
-		// 	if err != nil {
-		// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get sizeValue"})
-		// 		return
-		// 	}
-		// 	pageSize = size
-	}
-
-	// 3. Find the response object
-	arr, ok := t.responseObj[t.tokenFieldName].([]any)
-	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid response field"})
+	if t.paginationParameters.sendRecordsCount >= t.paginationParameters.totalRecord {
+		c.JSON(http.StatusNotFound, gin.H{"msg": "No record found"})
 		return
 	}
 
+	// Get single object from response field
+	arr, ok := t.responseObj[t.responseFieldName].([]any)
+	if !ok || len(arr) == 0 {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid response field"})
+		return
+	}
 	object := arr[0]
-	APIResponseObject := make([]any, 0, pageSize)
 
-	// if t.paginationParameters.sentRecordsCount+pageSize > t.paginationParameters.totalRecord {
-	// 	pageSize = t.paginationParameters.totalRecord - t.paginationParameters.sentRecordsCount
-	// }
+	numItems := t.paginationParameters.pageSize
 
-	for len(APIResponseObject) < pageSize {
-		APIResponseObject = append(APIResponseObject, object)
+	// last page
+	if t.paginationParameters.sendPageCount+1 == t.paginationParameters.totalPageCount {
+		numItems = t.paginationParameters.totalRecord - t.paginationParameters.sendRecordsCount
 	}
 
-	// t.paginationParameters.pageSentCount++
-	// t.paginationParameters.sentRecordsCount += pageSize
+	// Build response array
+	APIResponseObject := make([]any, 0, numItems)
+	for i := 0; i < numItems; i++ {
+		APIResponseObject = append(APIResponseObject, object)
+	}
+	t.responseObj[t.responseFieldName] = APIResponseObject
+	t.paginationParameters.sendRecordsCount += numItems
+	t.paginationParameters.sendPageCount++
 
-	t.responseObj[t.tokenFieldName] = APIResponseObject
+	// Set next offset value
+	t.responseObj[t.tokenFieldName] = "abcdxyzed"
+
+	if t.paginationParameters.sendRecordsCount >= t.paginationParameters.totalRecord {
+		t.responseObj[t.tokenFieldName] = nil
+	}
 
 	jsonResponse, err := json.Marshal(t.responseObj)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create response object"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "something went wrong"})
 		return
 	}
 

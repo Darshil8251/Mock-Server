@@ -77,7 +77,7 @@ func (o *offsetPaginator) Paginate(c *gin.Context) {
 
 	// Set next offset value
 	nextOffset := o.paginationParameters.sendRecordsCount
-	o.responseObj[o.offsetKey] = nextOffset
+	o.responseObj[o.offsetKey] = nextOffset + 1
 
 	if o.paginationParameters.sendRecordsCount >= o.paginationParameters.totalRecord {
 		o.responseObj[o.offsetKey] = nil
