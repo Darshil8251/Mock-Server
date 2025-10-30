@@ -27,34 +27,27 @@ func loadPaginationParameters(endpoint config.Endpoint) (p paginationParameters)
 
 	// Initialize with default values
 	p.totalPageCount = defaultPageCount
-	p.totalRecordCount = defaultTotalRecordCount
+	p.totalRecord = defaultTotalRecordCount
 	p.pageSize = defaultPageSize
-	p.pageKey = defaultPageKey
-	p.pageSizeKey = defaultPageSizeKey
-	p.pageSentCount = 0
-	p.sentRecordsCount = 0
+	p.sendPageCount = 0
+	p.sendRecordsCount = 0
 
-	if pageKey, ok := endpoint.Pagination.Options["pageKey"].(string); ok {
-		p.pageKey = pageKey
+	switch v := endpoint.Pagination.Options["pageSize"].(type) {
+	case float64:
+		p.pageSize = int(v)
+	case int:
+		p.pageSize = v
 	}
 
-	if pageSizeKey, ok := endpoint.Pagination.Options["pageSizeKey"].(string); ok {
-		p.pageSizeKey = pageSizeKey
+	switch v := endpoint.Pagination.Options["totalRecord"].(type) {
+	case float64:
+		p.totalRecord = int(v)
+	case int:
+		p.totalRecord = v
 	}
 
-	if pageSize, ok := endpoint.Pagination.Options["pageSize"].(int); ok {
-		p.pageSize = pageSize
-	}
-
-	if pageCount, ok := endpoint.Pagination.Options["totalPage"].(int); ok {
-		p.totalPageCount = pageCount
-	}
-
-	if totalRecordCount, ok := endpoint.Pagination.Options["totalRecord"].(int); ok {
-		p.totalRecordCount = totalRecordCount
-	}
-
-	p.pageParamsLocation = pageParameterLocation(endpoint.Pagination.Location)
+	// Calculate total pages using integer arithmetic
+	p.totalPageCount = (p.totalRecord + p.pageSize - 1) / p.pageSize
 
 	return p
 }
