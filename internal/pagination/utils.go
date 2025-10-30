@@ -3,7 +3,6 @@ package pagination
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 
@@ -73,28 +72,4 @@ func loadResponseObj(path string) (responseObject map[string]any, err error) {
 	}
 
 	return responseObject, nil
-}
-
-func findResponseFieldName(fieldName string, responseObject map[string]any) (string, error) {
-
-	if fieldName == "" {
-		for k, v := range responseObject {
-			if _, ok := v.([]any); ok {
-				fieldName = k
-				break
-			}
-		}
-		if fieldName == "" {
-			return "", fmt.Errorf("response field doesn't exist in response object")
-		}
-		return fieldName, nil
-	}
-
-	_, ok := responseObject[fieldName].([]any)
-	if !ok {
-		return "", fmt.Errorf("invalid response field name")
-	}
-
-	return fieldName, nil
-
 }
