@@ -38,10 +38,7 @@ func createLinkPaginator(endpoint config.Endpoint) (Paginator, error) {
 
 	l.responseObj = responseObj
 
-	l.responseField, err = findResponseFieldName(endpoint.Response.FieldName, l.responseObj)
-	if err != nil {
-		return nil, fmt.Errorf("error to find response field: %w", err)
-	}
+	l.responseField = endpoint.Response.FieldName
 
 	return l, nil
 }

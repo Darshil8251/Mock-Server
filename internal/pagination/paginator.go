@@ -11,18 +11,12 @@ import (
 
 type paginationType string
 
-type pageParameterLocation string
-
 const (
 	page   paginationType = "page"
 	token  paginationType = "token"
 	none   paginationType = "none"
 	link   paginationType = "link"
 	offset paginationType = "offset"
-
-	body   pageParameterLocation = "body"
-	query  pageParameterLocation = "query"
-	header pageParameterLocation = "header"
 )
 
 type Paginator interface {
