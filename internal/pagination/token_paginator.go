@@ -38,7 +38,7 @@ func createTokenPaginator(endpoint config.Endpoint) (*tokenPaginator, error) {
 
 	t.paginationParameters = loadPaginationParameters(endpoint)
 
-	tokenField, ok := endpoint.Pagination.Options["tokenFieldName"].(string)
+	tokenField, ok := endpoint.Pagination.Options["tokenKey"].(string)
 	if !ok {
 		return nil, fmt.Errorf("invalid token field name for endpoint: %s", endpoint.Path)
 	}

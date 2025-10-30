@@ -19,7 +19,7 @@ type Endpoint struct {
 	RequestBody map[string]any `json:"requestBody"`
 	RateLimit   int            `json:"rateLimit"`
 	Pagination  pagination     `json:"pagination"`
-	Response    ResponseParams `json":"response"`
+	Response    ResponseParams `json:"response"`
 }
 
 type ResponseParams struct {
